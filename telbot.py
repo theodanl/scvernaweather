@@ -45,23 +45,41 @@ async def send_hourly_weather_notification(city, chat_id):
         temp = data['main']['temp']
         description = data['weather'][0]['description']
         weather_type = data['weather'][0]['main']
-
-        emoji = weather_emojis.get(weather_type, '')  # Get emoji for weather type
+        emoji = weather_emojis.get(description, '')  # Get emoji for weather description
 
         if temp < -25:
-            result = 'Очень холодно, лучше всего остаться дома.'
+            result = 'Слишком холодно! Не выходите без крайней необходимости. Если вы все-таки выходите, наденьте очень теплую одежду, шарф, перчатки и головной убор.'
+            image_path = "./images/очень_холодно.jpg"
         elif temp < 0:
-            result = 'Холодно, одевайтесь теплее.'
+            result = 'Холодно! Наденьте теплую куртку, шапку и перчатки. Постарайтесь не оставаться на улице долгое время.'
+            image_path = "./images/холодно.jpg"
         elif temp < 10:
-            result = 'Прохладно, лучше надеть куртку.'
+            result = 'Прохладно! Рекомендуется надеть теплую куртку или свитер с шарфом. Обувь должна быть удобной и теплой.'
+            image_path = "./images/прохладно.jpg"
         elif temp < 20:
-            result = 'Тепло, на улице приятно.'
+            result = 'Тепло! Оденьтесь соответственно, чтобы вам было комфортно на улице. Можете взять с собой легкую куртку на всякий случай.'
+            image_path = "./images/тепло.jpg"
         elif temp < 30:
-            result = 'Жарко, можете надеть что-то легкое.'
+            result = 'Жарко! Рекомендуется носить легкую одежду из натуральных материалов, чтобы избежать перегрева.'
+            image_path = "./images/жарко.jpg"
         else:
-            result = 'Очень жарко, наденьте что-то легкое и пейте воду.'
+            result = 'Очень жарко! Оставайтесь в тени, пейте больше воды и носите легкую, свободную одежду из натуральных тканей.'
+            image_path = "./images/очень_жарко.jpg"
 
-        await bot.send_message(chat_id, f"Сейчас в городе {city} {description} {emoji}, температура {temp}°C. {result}")
+        # Формируем текст сообщения
+        message_text = f"<b>Сейчас в городе {city}</b>\n\n"\
+                       f"<i>Температура:</i> {temp}°C\n"\
+                       f"<i>Погода:</i> {description} {emoji}\n"\
+                       f"<i>Рекомендации:</i> {result}\n"
+
+        # Отправляем сообщение с изображением и текстом
+        with open(image_path, "rb") as photo_file:
+            await bot.send_photo(
+                chat_id,
+                photo=photo_file,
+                caption=message_text,
+                parse_mode="HTML"
+            )
 
     except Exception as ex:
         await bot.send_message(chat_id, f"Ошибка при получении погоды для города {city}: {ex}")
@@ -115,16 +133,22 @@ async def get_weather_info(message: types.Message):
         
         if temp < -25:
             result = 'Очень холодно, лучше всего остаться дома.'
+            image_path = "./images/очень_холодно.jpg"
         elif temp < 0:
             result = 'Холодно, одевайтесь теплее.'
+            image_path = "./images/холодно.jpg"
         elif temp < 10:
             result = 'Прохладно, лучше надеть куртку.'
+            image_path = "./images/прохладно.jpg"
         elif temp < 20:
             result = 'Тепло, на улице приятно.'
+            image_path = "./images/тепло.jpg"
         elif temp < 30:
             result = 'Жарко, можете надеть что-то легкое.'
+            image_path = "./images/жарко.jpg"
         else:
             result = 'Очень жарко, наденьте что-то легкое и пейте воду.'
+            image_path = "./images/очень_жарко.jpg"
             
         # Формируем текст сообщения
         message_text = f"<b>Сейчас в городе {message.text}</b>\n\n"\
@@ -133,7 +157,7 @@ async def get_weather_info(message: types.Message):
                        f"<i>Рекомендации:</i> {result}\n"
         
         # Отправляем сообщение с изображением и текстом
-        with open("./images/жарко.jpg", "rb") as photo_file:
+        with open(image_path, "rb") as photo_file:
             await bot.send_photo(
                 message.chat.id,
                 photo=photo_file,
