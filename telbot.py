@@ -9,7 +9,7 @@ import datetime
 bot = Bot(token='6964370519:AAETLP2uaIyHbtpp3JRaoeqKlIAH7mm6bsc')
 dp = Dispatcher(bot)
 
-start_keyboard = ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton(text='Set City'))
+start_keyboard = ReplyKeyboardMarkup(resize_keyboard=True).add(KeyboardButton(text='Установить город'))
 
 user_city = {}  # Dictionary to store user-selected cities
 default_city = {}  # Dictionary to store default cities
@@ -86,16 +86,23 @@ async def send_hourly_weather_notification(city, chat_id):
 
 async def hourly_weather_notifications():
     while True:
-        await asyncio.sleep(60)  # Задержка
+        await asyncio.sleep(300)  # Ожидание 1 часа
         for chat_id, city in default_city.items():
             await send_hourly_weather_notification(city, chat_id)
 
 @dp.message_handler(commands=['start'])
 async def start(message: types.Message):
-    await bot.send_message(message.from_user.id, 'Привет! Я могу отправлять тебе информацию о погоде в твоем городе. '
-                                                  'Для начала выбери свой основной город.', reply_markup=start_keyboard)
+    # Приветственное сообщение
+    welcome_message = "Привет! Я - бот, который предоставляет информацию о погоде. Для начала выбери свой основной город."
 
-@dp.message_handler(text='Set City')
+    # Красивое меню
+    start_keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True).add(types.KeyboardButton(text='Установить город'))
+
+    # Отправляем приветственное сообщение с локальным изображением
+    with open('./images/logo_preview.jpg', 'rb') as photo:
+        await message.answer_photo(photo=photo, caption=welcome_message, reply_markup=start_keyboard)
+
+@dp.message_handler(text='Установить город')
 async def set_city(message: types.Message):
     await bot.send_message(message.from_user.id, 'Введите свой основной город:')
     user_city[message.from_user.id] = True
@@ -122,58 +129,68 @@ async def get_weather_info(message: types.Message):
             "небольшая облачность": "🌥️"
         }
         
-        r = requests.get(
-            f"http://api.openweathermap.org/data/2.5/weather?q={message.text}&lang=ru&appid={open_weather_token}&units=metric"
-        )
-        data = r.json()
-        temp = data['main']['temp']
-        description = data['weather'][0]['description']
-        weather_type = data['weather'][0]['main']
-        emoji = weather_emojis.get(description, "")
-        
-        if temp < -25:
-            result = 'Очень холодно, лучше всего остаться дома.'
-            image_path = "./images/очень_холодно.jpg"
-        elif temp < 0:
-            result = 'Холодно, одевайтесь теплее.'
-            image_path = "./images/холодно.jpg"
-        elif temp < 10:
-            result = 'Прохладно, лучше надеть куртку.'
-            image_path = "./images/прохладно.jpg"
-        elif temp < 20:
-            result = 'Тепло, на улице приятно.'
-            image_path = "./images/тепло.jpg"
-        elif temp < 30:
-            result = 'Жарко, можете надеть что-то легкое.'
-            image_path = "./images/жарко.jpg"
-        else:
-            result = 'Очень жарко, наденьте что-то легкое и пейте воду.'
-            image_path = "./images/очень_жарко.jpg"
+        # Check if the user is in the process of setting the city
+        if message.from_user.id in user_city:
+            city = message.text
             
-        # Формируем текст сообщения
-        message_text = f"<b>Сейчас в городе {message.text}</b>\n\n"\
-                       f"<i>Температура:</i> {temp}°C\n"\
-                       f"<i>Погода:</i> {description} {emoji}\n"\
-                       f"<i>Рекомендации:</i> {result}\n"
-        
-        # Отправляем сообщение с изображением и текстом
-        with open(image_path, "rb") as photo_file:
-            await bot.send_photo(
-                message.chat.id,
-                photo=photo_file,
-                caption=message_text,
-                parse_mode="HTML"
+            r = requests.get(
+                f"http://api.openweathermap.org/data/2.5/weather?q={city}&lang=ru&appid={open_weather_token}&units=metric"
             )
+            data = r.json()
+            temp = data['main']['temp']
+            description = data['weather'][0]['description']
+            weather_type = data['weather'][0]['main']
+            emoji = weather_emojis.get(description, "")
+            
+            if temp < -25:
+                result = 'Очень холодно, лучше всего остаться дома.'
+                image_path = "./images/очень_холодно.jpg"
+            elif temp < 0:
+                result = 'Холодно, одевайтесь теплее.'
+                image_path = "./images/холодно.jpg"
+            elif temp < 10:
+                result = 'Прохладно, лучше надеть куртку.'
+                image_path = "./images/прохладно.jpg"
+            elif temp < 20:
+                result = 'Тепло, на улице приятно.'
+                image_path = "./images/тепло.jpg"
+            elif temp < 30:
+                result = 'Жарко, можете надеть что-то легкое.'
+                image_path = "./images/жарко.jpg"
+            else:
+                result = 'Очень жарко, наденьте что-то легкое и пейте воду.'
+                image_path = "./images/очень_жарко.jpg"
+                
+            # Формируем текст сообщения
+            message_text = f"<b>Сейчас в городе {city}</b>\n\n"\
+                           f"<i>Температура:</i> {temp}°C\n"\
+                           f"<i>Погода:</i> {description} {emoji}\n"\
+                           f"<i>Рекомендации:</i> {result}\n"
+            
+            # Отправляем сообщение с изображением и текстом
+            with open(image_path, "rb") as photo_file:
+                await bot.send_photo(
+                    message.chat.id,
+                    photo=photo_file,
+                    caption=message_text,
+                    parse_mode="HTML"
+                )
 
-        # Добавляем клавиатуру для выбора прогноза погоды
-        keyboard = types.InlineKeyboardMarkup()
-        keyboard.add(types.InlineKeyboardButton(text="Погода на 1 день", callback_data=f"weather_forecast_1_{message.text}"))
-        keyboard.add(types.InlineKeyboardButton(text="Погода на 3 дня", callback_data=f"weather_forecast_3_{message.text}"))
-        keyboard.add(types.InlineKeyboardButton(text="Погода на 7 дней", callback_data=f"weather_forecast_7_{message.text}"))
-        await bot.send_message(message.from_user.id, "Выберите интересующий вас прогноз погоды:", reply_markup=keyboard)
+            # Добавляем клавиатуру для выбора прогноза погоды
+            keyboard = types.InlineKeyboardMarkup()
+            keyboard.add(types.InlineKeyboardButton(text="Погода на 1 день", callback_data=f"weather_forecast_1_{city}"))
+            keyboard.add(types.InlineKeyboardButton(text="Погода на 3 дня", callback_data=f"weather_forecast_3_{city}"))
+            keyboard.add(types.InlineKeyboardButton(text="Погода на 7 дней", callback_data=f"weather_forecast_7_{city}"))
+            await bot.send_message(message.from_user.id, "Выберите интересующий вас прогноз погоды:", reply_markup=keyboard)
+            
+            # Сохраняем выбранный пользователем город как его основной
+            default_city[message.from_user.id] = city
+            
+            # Удаляем пользователя из временного словаря, так как город уже установлен
+            del user_city[message.from_user.id]
         
-        # Сохраняем выбранный пользователем город как его основной
-        default_city[message.from_user.id] = message.text
+        else:
+            await bot.send_message(message.from_user.id, "Проверьте название города")
 
     except Exception as ex:
         await bot.send_message(message.from_user.id, "Проверьте название города")
